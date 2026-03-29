@@ -1,11 +1,11 @@
 local utils = require 'mp.utils'
 
 -- CONFIGURATION --
-local output_name = "HDMI-A-1"
-local attempts = 0
-local max_attempts = 10     -- Total quarantine time: 10 * 0.1s = 1.0s
-local check_interval = 0.1  -- Time between checks in seconds
-local pause_wait = 1.8      -- Pause time for mode change in seconds
+local output_name = "HDMI-A-1"    -- System name from kscreen-doctor --outputs
+local attempts = 0                -- HDR detection attempts
+local max_attempts = 10           -- Total quarantine time: 10 * 0.1s = 1.0s
+local check_interval = 0.1        -- Time between checks in seconds
+local pause_wait = 1.8            -- Pause time for mode change in seconds
 local hdr_active = false
 local check_timer = nil
 
