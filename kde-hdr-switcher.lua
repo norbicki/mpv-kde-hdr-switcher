@@ -33,15 +33,11 @@ end
 
 -- VIDEO PARAMETERS ANALYSIS --
 local function check_hdr()
-    local params = mp.get_property_native("video-out-params")
     local vparams = mp.get_property_native("video-params")
+    local out_params = mp.get_property_native("video-out-params")
 
-    -- Hardware-specific formats (crucial for HEVC/P010 without standard metadata)
-    local vo_format = mp.get_property("video-out-params/pixelformat") or ""
-    local v_format = mp.get_property("video-format") or ""
-
-    -- Wait for decoder to initialize video structures
-    if not params and not vparams then
+    -- Wait for the decoder to initialize video structures
+    if not vparams and not out_params then
         if attempts < max_attempts then
             attempts = attempts + 1
             mp.add_timeout(check_interval, check_hdr)
@@ -49,34 +45,29 @@ local function check_hdr()
         return
     end
 
-    local colormatrix = params["colormatrix"] or vparams["colormatrix"] or ""
-    local transfer = params["transfer"] or vparams["transfer"] or ""
-    local primaries = params["primaries"] or vparams["primaries"] or ""
+    -- Data extraction with priority for video-out-params (as seen in your terminal dump)
+    local gamma = (out_params and out_params["gamma"]) or (vparams and vparams["gamma"]) or ""
+    local primaries = (out_params and out_params["primaries"]) or (vparams and vparams["primaries"]) or ""
+    local max_luma = (out_params and out_params["max-luma"]) or (vparams and vparams["max-luma"]) or 0
+    local colormatrix = (out_params and out_params["colormatrix"]) or (vparams and vparams["colormatrix"]) or ""
 
-    -- DETECTION LOGIC (Short-circuit evaluation) --
-    local is_hdr =
-    -- BT.2020 color space is the standard for Ultra HD and HDR content
-    string.find(colormatrix, "bt.2020") or
-    string.find(primaries, "bt.2020") or
+    -- DETECTION LOGIC (Optimized by probability of occurrence):
+    -- 1. gamma: "pq" (HDR10) or "hlg" (Broadcast HDR) are the most reliable indicators.
+    -- 2. primaries: "bt.2020" is the industry standard for 4K HDR content.
+    -- 3. max_luma: Fallback for mislabeled files (e.g., files reporting bt.709 but containing HDR metadata).
+    --    Note: 203 nits is the standard reference for SDR white, so we ignore it.
+    -- 4. colormatrix: Final check for bt.2020 tags in the color matrix.
 
-    -- Hybrid Log-Gamma: HDR standard used mainly in TV and live broadcasts
-    transfer == "hlg" or
-
-    -- SMPTE ST 2084 / PQ: The perceptual quantizer curve used in HDR10 and Dolby Vision
-    transfer == "smpte2084" or
-    transfer == "pq" or
-
-    -- Fallback: Detects HEVC hardware decoding (VA-API), which often implies 10-bit HDR
-    (vo_format == "vaapi" and v_format == "hevc") or
-
-    -- High Bit Depth check: Detects 10-bit pixel formats (P010), a key requirement for HDR
-    string.find(vo_format, "p010")
+    local is_hdr = (gamma == "pq" or gamma == "hlg") or
+                   (primaries == "bt.2020") or
+                   (max_luma > 0 and max_luma ~= 203) or
+                   (string.find(colormatrix, "bt.2020") ~= nil)
 
     if is_hdr then
         set_system_hdr(true)
         attempts = 0 -- Reset counter on successful detection
     else
-        -- Quarantine logic: confirm it's SDR before switching back
+        -- Confirm it's SDR over multiple attempts to avoid false negatives during scene changes
         if attempts < max_attempts then
             attempts = attempts + 1
             mp.add_timeout(check_interval, check_hdr)
