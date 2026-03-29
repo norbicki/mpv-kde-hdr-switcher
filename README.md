@@ -5,7 +5,7 @@ A lightweight Lua script for **mpv** on **KDE Plasma (Wayland)** that automatica
 ## Features
 * **Automatic HDR Toggle**: Switches HDR on when an HDR file is detected and back to SDR when finished.
 * **High Responsiveness**: Optimized with a 0.1s polling interval for near-instant detection.
-* **Smart Detection**: Goes beyond basic metadata; identifies HDR in "stubborn" files via `p010` pixel formats and `HEVC` hardware decoding flags.
+* **Smart Detection**: Identifies HDR even in mislabeled or "stubborn" files by analyzing luminance metadata (max-luma) alongside standard color flags.
 * **Quarantine Logic**: Includes a configurable delay (1.0s by default) to prevent screen flickering when navigating playlists.
 * **Playback Sync**: Pauses video during the mode switch to ensure a clean transition without frame drops or artifacts.
 
@@ -15,7 +15,7 @@ A lightweight Lua script for **mpv** on **KDE Plasma (Wayland)** that automatica
 * **mpv** compiled with Lua support.
 
 ## Hardware Note
-Tested and verified on Intel Graphics (VA-API). The detection logic specifically accounts for Intel's P010 and vaapi-hevc reporting patterns, ensuring reliable HDR triggering even with inconsistent file metadata.
+Tested and verified on systems using `kscreen-doctor`. The detection logic is hardware-agnostic and focuses on stream metadata (Primaries, Gamma/Transfer, and Mastering Display Luminance) rather than specific decoder flags, ensuring reliability across different GPU drivers.
 
 ## Installation
 1. Download `kde-hdr-switcher.lua` and move it to your mpv scripts folder:
@@ -37,10 +37,10 @@ You can fine-tune the script behavior by modifying the variables in the `CONFIGU
 | max_attempts | 10 | Number of checks before switching back to SDR (10 * 0.1s = 1s). |
 
 ## How it Works
-The script monitors `video-out-params` for specific HDR indicators:
-* **Color Spaces**: BT.2020 matrix or primaries.
-* **Transfer Curves**: HLG, PQ (SMPTE ST 2084).
-* **Pixel Formats**: P010 (10-bit) or HEVC streams via VA-API.
+The script monitors both `video-params` and `video-out-params` for specific HDR indicators using an optimized priority-based logic:
+* **Transfer Curves (Gamma)**: PQ (SMPTE ST 2084) or HLG.
+* **Color Primaries**: BT.2020 (Ultra HD standard) primaries or matrix identifiers.
+* **Luminance Metadata**: Detects HDR via `max-luma` (Mastering Display) values, allowing it to catch HDR content even when standard color space tags are missing or incorrect. The 203 nits value is ignored because it represents the standard reference for "Graphics White" in HDR, often used as a default placeholder that doesn't indicate actual high-dynamic-range highlights.
 
 Upon detection, it triggers:
 `kscreen-doctor output.<name>.hdr.enable output.<name>.wcg.enable`
