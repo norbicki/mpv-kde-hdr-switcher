@@ -40,7 +40,7 @@ local function set_system_hdr(state)
     }, function(success, result, error)
         if success then
             hdr_active = state
-            -- Poczekaj na odświeżenie bufora
+            -- Wait for display synchronization and signal stabilization
             mp.add_timeout(pause_wait, function()
                 mp.set_property_native("pause", false)
                 mp.osd_message(message, 3)
