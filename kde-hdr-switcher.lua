@@ -72,7 +72,7 @@ local function check_hdr()
         return
     end
 
-    -- Data extraction with priority for video-out-params (as seen in your terminal dump)
+    -- Data extraction with priority for video-out-params
     local gamma = (out_params and out_params["gamma"]) or (vparams and vparams["gamma"]) or ""
     local primaries = (out_params and out_params["primaries"]) or (vparams and vparams["primaries"]) or ""
     local max_luma = (out_params and out_params["max-luma"]) or (vparams and vparams["max-luma"]) or 0
