@@ -35,6 +35,7 @@ You can fine-tune the script behavior by modifying the variables in the `CONFIGU
 | :--- | :--- | :--- |
 | check_interval | 0.1 | Time in seconds between metadata checks. |
 | max_attempts | 10 | Number of checks before switching back to SDR (10 * 0.1s = 1s). |
+| pause_wait | 1.8 | Pause time for mode change in seconds. |
 
 ## How it Works
 The script monitors both `video-params` and `video-out-params` for specific HDR indicators using an optimized priority-based logic:
