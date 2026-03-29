@@ -95,11 +95,13 @@ mp.observe_property("pause", "bool", function(name, paused)
 end)
 
 mp.observe_property("eof-reached", "bool", function(name, val)
-    set_system_hdr(false)
-    attempts = 0
+    if val == true then
+        set_system_hdr(false)
+        attempts = 0
+    end
 end)
 
 mp.register_event("shutdown", function()
     -- Force SDR mode on exit to restore desktop colors
-    os.execute(string.format("kscreen-doctor output.%s.hdr.disable output.%s.wcg.disable &", output_name, output_name))
+    os.execute(string.format("kscreen-doctor output.%s.hdr.disable output.%s.wcg.disable", output_name, output_name))
 end)
