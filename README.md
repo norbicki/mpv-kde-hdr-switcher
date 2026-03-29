@@ -43,3 +43,5 @@ The script monitors `video-out-params` for specific HDR indicators:
 Upon detection, it triggers:
 `kscreen-doctor output.<name>.hdr.enable output.<name>.wcg.enable`
 
+## License
+MIT License
