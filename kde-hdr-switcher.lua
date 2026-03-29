@@ -2,25 +2,38 @@ local utils = require 'mp.utils'
 
 -- CONFIGURATION --
 local output_name = "HDMI-A-1"
-local check_interval = 0.1  -- Time between checks in seconds
-local hdr_active = false
 local attempts = 0
 local max_attempts = 10     -- Total quarantine time: 10 * 0.1s = 1.0s
+local check_interval = 0.1  -- Time between checks in seconds
+local hdr_active = false
+local check_timer = nil
+
+-- COMMANDS PREPARATION --
+local cmd_enable = {
+    args = { "kscreen-doctor",
+        "output." .. output_name .. ".hdr.enable",
+        "output." .. output_name .. ".wcg.enable" }
+}
+
+local cmd_disable = {
+    args = { "kscreen-doctor",
+        "output." .. output_name .. ".hdr.disable",
+        "output." .. output_name .. ".wcg.disable" }
+}
 
 -- SYSTEM CONTROL FUNCTION --
 local function set_system_hdr(state)
     if state == hdr_active then return end
 
     local action = state and "enable" or "disable"
+    local cmd = state and cmd_enable or cmd_disable
     local message = state and "HDR Mode: ENABLED" or "HDR Mode: DISABLED"
 
     -- Pause to prevent playback artifacts during mode switch
     mp.set_property_native("pause", true)
 
     -- Execute kscreen-doctor to toggle HDR and WCG
-    local cmd = string.format("kscreen-doctor output.%s.hdr.%s output.%s.wcg.%s &",
-                output_name, action, output_name, action)
-    os.execute(cmd)
+    utils.subprocess_detached(cmd)
 
     hdr_active = state
 
@@ -33,6 +46,11 @@ end
 
 -- VIDEO PARAMETERS ANALYSIS --
 local function check_hdr()
+    if check_timer then
+        check_timer:kill()
+        check_timer = nil
+    end
+
     local vparams = mp.get_property_native("video-params")
     local out_params = mp.get_property_native("video-out-params")
 
@@ -60,8 +78,8 @@ local function check_hdr()
 
     local is_hdr = (gamma == "pq" or gamma == "hlg") or
                    (primaries == "bt.2020") or
-                   (max_luma > 0 and max_luma ~= 203) or
-                   (string.find(colormatrix, "bt.2020") ~= nil)
+                   (max_luma > 203) or
+                   (colormatrix:sub(1, 7) == "bt.2020")
 
     if is_hdr then
         set_system_hdr(true)
@@ -70,7 +88,7 @@ local function check_hdr()
         -- Confirm it's SDR over multiple attempts to avoid false negatives during scene changes
         if attempts < max_attempts then
             attempts = attempts + 1
-            mp.add_timeout(check_interval, check_hdr)
+            check_timer = mp.add_timeout(check_interval, check_hdr)
         else
             set_system_hdr(false)
             attempts = 0
@@ -103,5 +121,5 @@ end)
 
 mp.register_event("shutdown", function()
     -- Force SDR mode on exit to restore desktop colors
-    os.execute(string.format("kscreen-doctor output.%s.hdr.disable output.%s.wcg.disable", output_name, output_name))
+    utils.subprocess_detached(cmd_disable)
 end)
