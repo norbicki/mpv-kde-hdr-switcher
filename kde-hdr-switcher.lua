@@ -5,6 +5,7 @@ local output_name = "HDMI-A-1"
 local attempts = 0
 local max_attempts = 10     -- Total quarantine time: 10 * 0.1s = 1.0s
 local check_interval = 0.1  -- Time between checks in seconds
+local pause_wait = 1.8      -- Pause time for mode change in seconds
 local hdr_active = false
 local check_timer = nil
 
@@ -25,7 +26,6 @@ local cmd_disable = {
 local function set_system_hdr(state)
     if state == hdr_active then return end
 
-    local action = state and "enable" or "disable"
     local cmd = state and cmd_enable or cmd_disable
     local message = state and "HDR Mode: ENABLED" or "HDR Mode: DISABLED"
 
@@ -33,14 +33,23 @@ local function set_system_hdr(state)
     mp.set_property_native("pause", true)
 
     -- Execute kscreen-doctor to toggle HDR and WCG
-    utils.subprocess_detached(cmd)
-
-    hdr_active = state
-
-    -- Resume playback and show OSD after display synchronization
-    mp.add_timeout(1.2, function()
-        mp.set_property_native("pause", false)
-        mp.osd_message(message, 3)
+    mp.command_native_async({
+        name = "subprocess",
+        playback_only = false,
+        args = cmd.args
+    }, function(success, result, error)
+        if success then
+            hdr_active = state
+            -- Poczekaj na odświeżenie bufora
+            mp.add_timeout(pause_wait, function()
+                mp.set_property_native("pause", false)
+                mp.osd_message(message, 3)
+            end)
+        else
+            -- If an error occurs (e.g. kscreen-doctor is missing), at least play the video
+            mp.set_property_native("pause", false)
+            mp.msg.error("Error kde-hdr-switcher: " .. (error or "unknown"))
+        end
     end)
 end
 
