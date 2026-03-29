@@ -13,7 +13,9 @@ A lightweight Lua script for **mpv** on **KDE Plasma (Wayland)** that automatica
 * **KDE Plasma** (Wayland session is mandatory for HDR).
 * **libkscreen** (provides the `kscreen-doctor` utility).
 * **mpv** compiled with Lua support.
-* **Hardware Decoding** (VA-API/Intel recommended for best results with 10-bit files).
+
+## Hardware Note
+Tested and verified on Intel Graphics (VA-API). The detection logic specifically accounts for Intel's P010 and vaapi-hevc reporting patterns, ensuring reliable HDR triggering even with inconsistent file metadata.
 
 ## Installation
 1. Download `kde-hdr-switcher.lua` and move it to your mpv scripts folder:
